@@ -307,4 +307,20 @@ function process_email_queue(task):
         RetryTask(task) # Automatically retries if it fails
 ```
 
+# Stage 6
+
+## 1. Priority Inbox Approach
+* We will calculate a "priority score" for each notification. 
+* We will sort notifications primarily by their type's weight, and secondarily by their creation timestamp.
+* **Weights**: Placement = 3, Result = 2, Event = 1.
+
+## 2. Maintaining the Top 'n' Efficiently
+* To efficiently maintain the top 10 notifications as new ones stream in, we will use a **Min-Heap** (Priority Queue) of size `n` in memory.
+* As a new notification comes in, we compare it to the "smallest" notification at the top of the Min-Heap.
+* If it has a higher priority, we pop the root and insert the new notification. This keeps insertion time lightning fast at $O(\log n)$.
+
+## 3. TypeScript Implementation Strategy
+* TypeScript doesn't have a built-in Heap, so we will create a custom generic Min-Heap class.
+* We will fetch data from the provided API, feed the unread notifications into our Heap, and then extract them to display the final Priority Inbox array.
+
 
