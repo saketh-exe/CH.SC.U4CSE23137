@@ -272,4 +272,39 @@ The frontend shouldn't request notifications on every page navigation.
   * *Pros:* Drops most of the API calls since most of the data is local now. UX is instant.
   * *Cons:* Requires managing state across multiple browser tabs (e.g., if you mark as read in Tab A, Tab B needs to know, which might require syncing via `localStorage`).
 
+# Stage 5
+
+## 1. Shortcomings of current approach
+* **Blocking**: Sending sequentially will freeze the server for hours.
+* **No Fault Tolerance**: One email failure breaks the loop and skips the rest.
+* **Tight Coupling**: If the email API crashes, the DB insert fails too.
+
+## 2. Handling the 200 Email Failures
+* Currently, you have to manually parse logs to find failed IDs and script a retry.
+* Moving forward, use a message queue so failed tasks auto-retry safely.
+
+## 3. Should DB Saves and Emails happen together?
+* No. DB writes are fast, but emails are slow and unreliable.
+* Tying them together means external network timeouts will break your internal app flow.
+
+## 4. Redesign strategy
+* Process the DB saves in a single bulk insert.
+* Use an async Message Queue (like RabbitMQ) to offload the slow email tasks to background workers.
+
+### Revised Pseudocode
+```python
+function notify_all_v2(student_ids, message):
+    batch_save_to_db(student_ids, message) # Fast bulk DB insert
+    for user_id in student_ids:
+        PushToQueue("EMAIL_QUEUE", { id: user_id, msg: message })
+        PushToQueue("APP_PUSH_QUEUE", { id: user_id, msg: message })
+
+# Background worker (runs separately)
+function process_email_queue(task):
+    try: 
+        send_email(task.id, task.msg)
+    except: 
+        RetryTask(task) # Automatically retries if it fails
+```
+
 
