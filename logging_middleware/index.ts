@@ -1,28 +1,35 @@
-import fetch from "node-fetch";
+declare var process: any;
 
 export type LogLevel = "info" | "warn" | "error" | "debug";
 export type LogStack = "frontend" | "backend" | "fullstack";
 
 export interface LogConfiguration {
   testServerUrl: string;
+  token: string;
 }
 
+const getEnvUrl = () => {
+    if (typeof process !== "undefined" && process.env && process.env.TEST_SERVER_URL) {
+        return process.env.TEST_SERVER_URL;
+    }
+    return "http://localhost:3000/logs";
+};
+
+const getToken = () =>{
+  if (typeof process !== "undefined" && process.env && process.env.API_TOKEN) {
+    return process.env.API_TOKEN;
+}
+return "null";
+}
 let config: LogConfiguration = {
-  testServerUrl: process.env.TEST_SERVER_URL || "http://localhost:3000/logs",
+  testServerUrl: getEnvUrl(),
+  token: getToken()
 };
 
 export function configureLogger(newConfig: Partial<LogConfiguration>) {
   config = { ...config, ...newConfig };
 }
 
-/**
- * Log function that sends data to a test server.
- * 
- * @param stack - The stack where the log originated (e.g., frontend, backend)
- * @param level - Log severity level
- * @param pkg - The package/module generating the log
- * @param message - The log message or narrative
- */
 export async function Log(
   stack: LogStack | string,
   level: LogLevel | string,
@@ -38,7 +45,6 @@ export async function Log(
     message: typeof message === "string" ? message : JSON.stringify(message),
   };
 
- 
   if (level === "error") {
     console.error(`[${timestamp}] [${level.toUpperCase()}] [${pkg}] - ${logEntry.message}`);
   } else if (level === "warn") {
@@ -47,11 +53,11 @@ export async function Log(
     console.log(`[${timestamp}] [${level.toUpperCase()}] [${pkg}] - ${logEntry.message}`);
   }
 
-
   try {
     await fetch(config.testServerUrl, {
       method: "POST",
       headers: {
+         'Authorization': `Bearer ${config.token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(logEntry),
