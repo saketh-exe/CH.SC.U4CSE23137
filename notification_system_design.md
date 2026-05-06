@@ -213,3 +213,40 @@ await Notification.updateOne(
   { $set: { isRead: true } }
 );
 ```
+
+# Stage 3
+
+## 1. Query Analysis
+
+**The Query:**
+```sql
+SELECT * FROM notifications
+WHERE studentID = 1042 AND isRead = false
+ORDER BY createdAt ASC;
+```
+Yes, it works and it gets back unread notifications from the studentID 1042,
+BUT
+```sql
+select * from notifications
+```
+still searches the whole DB for the user and it's waste of memory and network bandwidth. 
+
+## 2. Improvements & Cost
+**Fix:**
+Create a composite index on `(studentID, isRead, createdAt)` and change `SELECT *` to only the fields you need (like `SELECT id, title`).
+
+**Cost:**
+Without an index, it's roughly $O(N)$ (where N is 5 million rows) plus sorting time. With the index, it drops to $O(\log N + K)$ (where K is the matched rows). The index stores the data pre-sorted, so the database skips the heavy sorting step entirely.
+
+## 3. Feedback: Indexing Every Column
+If we index every coloumn it becomes slow to add or update the data in the coloumn,
+this is because everytime there is a change the whole coloumn must be hashed and reindexed.
+
+## 4. Query: Placement notifications in the last 7 days
+
+```sql
+SELECT DISTINCT studentID
+FROM notifications
+WHERE notificationType = 'Placement'
+  AND createdAt >= NOW() - INTERVAL '7 days';
+```
