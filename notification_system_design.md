@@ -25,7 +25,7 @@ For all endpoints, the following headers are expected:
 ```json
 {
   "id": "uuid-v4",
-  "type": "INFO | ALERT | PROMO | SYSTEM",
+  "type": "EVENT | RESULT | PLACEMENT",
   "title": "String",
   "message": "String",
   "actionUrl": "String (Optional, link to redirect)",
@@ -161,4 +161,55 @@ To ensure the frontend reacts instantly to new notifications without costly poll
    - Triggers an immediate "Toast / Snack-bar" pop-up.
    - Increments the unread badge count by +1 dynamically without a new API request.
 
+# Stage 2
 
+## 1. Storage Choice: MongoDB
+I recommend **MongoDB** because notification systems get a lot of reads and writes. A NoSQL approach easily stores different notification formats (like Events vs. Results) without strict schema changes. It also supports TTL (Time-to-Live) indexes to automatically delete old, unneeded notifications, saving storage space.
+
+## 2. Basic Schema
+**Collection: `users`**
+```javascript
+{
+  "_id": "1042",
+  "name": "Saketh",
+  "email": "saketh@example.com",
+  "role": "STUDENT", 
+  "department": "CSE"
+}
+```
+
+**Collection: `notifications`**
+```javascript
+{
+  "_id": ObjectId("..."),
+  "userId": "1042",
+  "type": "ALERT",
+  "title": "Semester Results",
+  "message": "Your results are out.",
+  "isRead": false,
+  "createdAt": ISODate("2026-05-06T08:35:12.000Z")
+}
+```
+*We should add a compound index on `(userId, createdAt)` and `(userId, isRead)` to make filtering fast.*
+
+## 3. Mongoose Query Examples
+
+**Fetch recent notifications for a user:**
+```javascript
+await Notification.find({ userId: '1042' })
+  .sort({ createdAt: -1 })
+  .limit(20);
+```
+
+**Get unread count:**
+```javascript
+await Notification.countDocuments({ userId: '1042', isRead: false });
+```
+
+**Mark a notification as read:**
+```javascript
+await Notification.updateOne(
+  { _id: "...", userId: "1042" },
+  { $set: { isRead: true } }
+);
+```
