@@ -250,3 +250,26 @@ FROM notifications
 WHERE notificationType = 'Placement'
   AND createdAt >= NOW() - INTERVAL '7 days';
 ```
+
+# Stage 4
+
+## 1. Problem: DB Overwhelmed on Page Load
+Fetching notifications on every single page load is highly inefficient. We need to reduce the number of times the frontend asks the backend for data.
+
+## 2. Solutions to Improve Performance
+
+### Strategy A: Caching with Redis (Backend Fix)
+Instead of hitting MongoDB every time, store the user's unread count and latest notifications in an in-memory cache like **Redis**. 
+* **How:** On the first request, fetch from Mongo and save to Redis. On subsequent page loads, serve directly from Redis. When a new notification arrives or a user reads one, update the cache.
+* **Tradeoffs:** 
+  * *Pros:* Drastically reduces DB CPU and I/O usage.
+  * *Cons:* Extra infrastructure complexity and cost.
+
+### Strategy B: Client-Side State Management (Frontend Fix)
+The frontend shouldn't request notifications on every page navigation. 
+* **How:** Fetch notifications once on initial app load and store them in global state (like Redux or Zustand). As the user navigates, just read from the local state. Use the WebSocket connection to push new notifications or status changes directly into that state.
+* **Tradeoffs:**
+  * *Pros:* Drops most of the API calls since most of the data is local now. UX is instant.
+  * *Cons:* Requires managing state across multiple browser tabs (e.g., if you mark as read in Tab A, Tab B needs to know, which might require syncing via `localStorage`).
+
+
